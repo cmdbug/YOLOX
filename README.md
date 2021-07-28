@@ -8,6 +8,8 @@ For more details, please refer to our [report on Arxiv](https://arxiv.org/abs/21
 <img src="assets/git_fig.png" width="1000" >
 
 ## Updates!!
+* 【2021/07/28】 We fix the fatal error of [memory leak](https://github.com/Megvii-BaseDetection/YOLOX/issues/103)
+* 【2021/07/26】 We now support [MegEngine](https://github.com/Megvii-BaseDetection/YOLOX/tree/main/demo/MegEngine) deployment.
 * 【2021/07/20】 We have released our technical report on [Arxiv](https://arxiv.org/abs/2107.08430).
 
 ## Comming soon
@@ -69,15 +71,15 @@ Step1. Download a pretrained model from the benchmark table.
 Step2. Use either -n or -f to specify your detector's config. For example:
 
 ```shell
-python tools/demo.py image -n yolox-s -c /path/to/your/yolox_s.pth.tar --path assets/dog.jpg --conf 0.3 --nms 0.65 --tsize 640 --save_result --device [cpu/gpu]
+python tools/demo.py image -n yolox-s -c /path/to/your/yolox_s.pth.tar --path assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device [cpu/gpu]
 ```
 or
 ```shell
-python tools/demo.py image -f exps/default/yolox_s.py -c /path/to/your/yolox_s.pth.tar --path assets/dog.jpg --conf 0.3 --nms 0.65 --tsize 640 --save_result --device [cpu/gpu]
+python tools/demo.py image -f exps/default/yolox_s.py -c /path/to/your/yolox_s.pth.tar --path assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device [cpu/gpu]
 ```
 Demo for video:
 ```shell
-python tools/demo.py video -n yolox-s -c /path/to/your/yolox_s.pth.tar --path /path/to/your/video --conf 0.3 --nms 0.65 --tsize 640 --save_result --device [cpu/gpu]
+python tools/demo.py video -n yolox-s -c /path/to/your/yolox_s.pth.tar --path /path/to/your/video --conf 0.25 --nms 0.45 --tsize 640 --save_result --device [cpu/gpu]
 ```
 
 
@@ -152,10 +154,11 @@ python tools/eval.py -n  yolox-s -c yolox_s.pth.tar -b 1 -d 1 --conf 0.001 --fp1
 ## Deployment
 
 
-1.  [ONNX export and an ONNXRuntime](./demo/ONNXRuntime)
-2.  [TensorRT in C++ and Python](./demo/TensorRT)
-3.  [ncnn in C++ and Java](./demo/ncnn)
-4.  [OpenVINO in C++ and Python](./demo/OpenVINO)
+1.  [MegEngine in C++ and Python](./demo/MegEngine)
+2.  [ONNX export and an ONNXRuntime](./demo/ONNXRuntime)
+3.  [TensorRT in C++ and Python](./demo/TensorRT)
+4.  [ncnn in C++ and Java](./demo/ncnn)
+5.  [OpenVINO in C++ and Python](./demo/OpenVINO)
 
 
 ## Third-party resources
