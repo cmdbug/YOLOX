@@ -2,11 +2,21 @@
 # -*- coding:utf-8 -*-
 # Copyright (c) Megvii, Inc. and its affiliates.
 
+import contextlib
+import io
+import itertools
+import json
+import tempfile
+import time
 from loguru import logger
+from tabulate import tabulate
 from tqdm import tqdm
+
+import numpy as np
 
 import torch
 
+from yolox.data.datasets import COCO_CLASSES
 from yolox.utils import (
     gather,
     is_main_process,
@@ -16,12 +26,29 @@ from yolox.utils import (
     xyxy2xywh
 )
 
-import contextlib
-import io
-import itertools
-import json
-import tempfile
-import time
+
+def per_class_mAP_table(coco_eval, class_names=COCO_CLASSES, headers=["class", "AP"], colums=6):
+    per_class_mAP = {}
+    precisions = coco_eval.eval["precision"]
+    # precision has dims (iou, recall, cls, area range, max dets)
+    assert len(class_names) == precisions.shape[2]
+
+    for idx, name in enumerate(class_names):
+        # area range index 0: all area ranges
+        # max dets index -1: typically 100 per image
+        precision = precisions[:, :, idx, 0, -1]
+        precision = precision[precision > -1]
+        ap = np.mean(precision) if precision.size else float("nan")
+        per_class_mAP[name] = float(ap * 100)
+
+    num_cols = min(colums, len(per_class_mAP) * len(headers))
+    result_pair = [x for pair in per_class_mAP.items() for x in pair]
+    row_pair = itertools.zip_longest(*[result_pair[i::num_cols] for i in range(num_cols)])
+    table_headers = headers * (num_cols // len(headers))
+    table = tabulate(
+        row_pair, tablefmt="pipe", floatfmt=".3f", headers=table_headers, numalign="left",
+    )
+    return table
 
 
 class COCOEvaluator:
@@ -31,16 +58,24 @@ class COCOEvaluator:
     """
 
     def __init__(
-        self, dataloader, img_size, confthre, nmsthre, num_classes, testdev=False
+        self,
+        dataloader,
+        img_size: int,
+        confthre: float,
+        nmsthre: float,
+        num_classes: int,
+        testdev: bool = False,
+        per_class_mAP: bool = False,
     ):
         """
         Args:
             dataloader (Dataloader): evaluate dataloader.
-            img_size (int): image size after preprocess. images are resized
+            img_size: image size after preprocess. images are resized
                 to squares whose shape is (img_size, img_size).
-            confthre (float): confidence threshold ranging from 0 to 1, which
+            confthre: confidence threshold ranging from 0 to 1, which
                 is defined in the config file.
-            nmsthre (float): IoU threshold of non-max supression ranging from 0 to 1.
+            nmsthre: IoU threshold of non-max supression ranging from 0 to 1.
+            per_class_mAP: Show per class mAP during evalution or not. Default to False.
         """
         self.dataloader = dataloader
         self.img_size = img_size
@@ -48,6 +83,7 @@ class COCOEvaluator:
         self.nmsthre = nmsthre
         self.num_classes = num_classes
         self.testdev = testdev
+        self.per_class_mAP = per_class_mAP
 
     def evaluate(
         self,
@@ -83,7 +119,7 @@ class COCOEvaluator:
 
         inference_time = 0
         nms_time = 0
-        n_samples = len(self.dataloader) - 1
+        n_samples = max(len(self.dataloader) - 1, 1)
 
         if trt_file is not None:
             from torch2trt import TRTModule
@@ -206,7 +242,7 @@ class COCOEvaluator:
             try:
                 from yolox.layers import COCOeval_opt as COCOeval
             except ImportError:
-                from .cocoeval_mr import COCOeval
+                from pycocotools.cocoeval import COCOeval
 
                 logger.warning("Use standard COCOeval.")
 
@@ -217,6 +253,8 @@ class COCOEvaluator:
             with contextlib.redirect_stdout(redirect_string):
                 cocoEval.summarize()
             info += redirect_string.getvalue()
+            if self.per_class_mAP:
+                info += "per class mAP:\n" + per_class_mAP_table(cocoEval)
             return cocoEval.stats[0], cocoEval.stats[1], info
         else:
             return 0, 0, info
